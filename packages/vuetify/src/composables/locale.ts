@@ -51,6 +51,7 @@ const createTranslateFunction = (
   customTranslateFunction?: CustomTranslateFunction
 ) => {
   return (key: string, ...params: unknown[]) => {
+    console.log('translate', key, current.value, params, !!customTranslateFunction)
     if (customTranslateFunction) {
       return customTranslateFunction(key, current.value, params)
     }
@@ -87,6 +88,7 @@ const createTranslateFunction = (
 type MaybeRef<T> = Ref<T> | T
 
 function wrapInRef <T> (value: MaybeRef<T>): Ref<T> {
+  console.log(isRef(value))
   if (isRef(value)) {
     return value
   }
@@ -109,7 +111,9 @@ export function createLocale (options: {
   locales: MaybeRef<Record<string, Locale>>
   customTranslateFunction?: CustomTranslateFunction
 }) {
+  console.log('before')
   const currentLocale = wrapInRef(options.currentLocale)
+  console.log('after')
   const fallbackLocale = wrapInRef(options.fallbackLocale)
   const locales = wrapInRef(options.locales)
   const customTranslateFunction = options.customTranslateFunction
@@ -143,10 +147,13 @@ export function provideLocale (props: { locale?: string, fallbackLocale?: string
   const currentLocale = computed(() => props.locale ?? locale.currentLocale.value)
   const fallbackLocale = computed(() => props.fallbackLocale ?? locale.fallbackLocale.value)
 
+  console.log('provideee', currentLocale.value)
+
   const newLocale = createLocale({
     currentLocale,
     fallbackLocale,
     locales: locale.locales,
+    customTranslateFunction: locale.customTranslateFunction,
   })
 
   provide(VuetifyLocaleSymbol, newLocale)
