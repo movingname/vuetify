@@ -159,7 +159,7 @@ export default defineComponent({
       return createRange(length.value).map(i => createSlotProps(i))
     })
 
-    const buttonRefs = ref<ComponentPublicInstance[]>([])
+    const buttonRefs = ref<(ComponentPublicInstance | undefined)[]>([])
 
     onBeforeUpdate(() => {
       buttonRefs.value = []
@@ -169,10 +169,10 @@ export default defineComponent({
       const increment = props.halfIncrements ? 0.5 : 1
       if (e.keyCode === keyCodes.left && rating.value > 0) {
         rating.value -= increment
-        nextTick(() => buttonRefs.value[Math.floor(rating.value)].$el.focus())
+        nextTick(() => buttonRefs.value[Math.floor(rating.value)]?.$el.focus())
       } else if (e.keyCode === keyCodes.right && rating.value < length.value) {
         rating.value += increment
-        nextTick(() => buttonRefs.value[Math.floor(rating.value - 0.5)].$el.focus())
+        nextTick(() => buttonRefs.value[Math.floor(rating.value - 0.5)]?.$el.focus())
       }
     }
 
