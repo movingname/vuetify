@@ -214,7 +214,7 @@ export default defineComponent({
               aria-label={iconProps.ariaLabel}
               disabled={iconProps.disabled}
               density={props.density}
-              // tabindex={props.readonly ? -1 : undefined}
+              tabindex={props.readonly ? -1 : undefined}
             />
           </div>
         ))}
