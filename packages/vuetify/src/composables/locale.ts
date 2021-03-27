@@ -1,22 +1,20 @@
 // Utilities
-import { computed, inject, isRef, provide, ref } from 'vue'
+import { inject, isRef, provide, ref, watch } from 'vue'
 
-import enUS from '@/locale/en'
+import en from '@/locale/en'
 
 // Types
 import type { InjectionKey, Ref } from 'vue'
-import { getObjectValueByPath } from '@/util'
+import { getObjectValueByPath, mergeDeep } from '@/util'
 import { consoleError, consoleWarn } from '@/util/console'
 
-type CustomTranslateFunction = (key: string, locale: string, params: unknown[]) => string
-
 export interface LocaleProvide {
-  isRtl: Ref<boolean>
-  locales: Ref<Record<string, Locale>>
-  currentLocale: Ref<string>
-  fallbackLocale: Ref<string>
-  customTranslateFunction?: CustomTranslateFunction
-  translate: (key: string, ...params: unknown[]) => string
+  locale?: any
+  global?: boolean
+  getScope?: VueI18nOptions['getScope']
+  createScope?: VueI18nOptions['createScope']
+  rtl: Ref<Record<string, boolean>>
+  isRtl: Ref<boolean | undefined>
 }
 
 export interface Locale {
@@ -26,11 +24,32 @@ export interface Locale {
   }
 }
 
-export interface LocaleOptions {
+export type VueI18nOptions = {
+  i18n: any
+  getScope: (root?: boolean) => any
+  createScope: (locale?: string) => any
+  rtl?: Record<string, boolean>
+}
+
+export type LocaleOptions = {
   defaultLocale?: string
   fallbackLocale?: string
-  locales?: Record<string, Locale>
-  translate?: CustomTranslateFunction
+  messages?: Record<string, Locale>
+  rtl?: Record<string, boolean>
+}
+
+type MaybeRef<T> = Ref<T> | T
+
+function wrapInRef <T> (value: MaybeRef<T>): Ref<T> {
+  if (isRef(value)) {
+    return value
+  }
+
+  return ref(value) as Ref<T>
+}
+
+const isVueI18n = (x: any): x is VueI18nOptions => {
+  return !!x && x.hasOwnProperty('getScope') && x.hasOwnProperty('createScope')
 }
 
 export const VuetifyLocaleSymbol: InjectionKey<LocaleProvide> = Symbol.for('vuetify:locale')
@@ -47,22 +66,16 @@ const replace = (str: string, params: unknown[]) => {
 const createTranslateFunction = (
   current: Ref<string>,
   fallback: Ref<string>,
-  locales: Ref<Record<string, Locale>>,
-  customTranslateFunction?: CustomTranslateFunction
+  messages: Ref<Record<string, Locale>>,
 ) => {
   return (key: string, ...params: unknown[]) => {
-    console.log('translate', key, current.value, params, !!customTranslateFunction)
-    if (customTranslateFunction) {
-      return customTranslateFunction(key, current.value, params)
-    }
-
     if (!key.startsWith(LANG_PREFIX)) {
       return replace(key, params)
     }
 
     const shortKey = key.replace(LANG_PREFIX, '')
-    const currentLocale = locales.value[current.value]
-    const fallbackLocale = locales.value[fallback.value]
+    const currentLocale = current.value && messages.value[current.value]
+    const fallbackLocale = fallback.value && messages.value[fallback.value]
 
     let str: string = getObjectValueByPath(currentLocale, shortKey, null)
 
@@ -85,78 +98,103 @@ const createTranslateFunction = (
   }
 }
 
-type MaybeRef<T> = Ref<T> | T
+const defaultOptions = { locale: 'en', fallbackLocale: 'en', messages: { en } }
 
-function wrapInRef <T> (value: MaybeRef<T>): Ref<T> {
-  console.log(isRef(value))
-  if (isRef(value)) {
-    return value
+export function createLocaleFromOptions (options?: LocaleOptions | VueI18nOptions): LocaleProvide {
+  const rtl = options?.rtl ?? {}
+
+  if (isVueI18n(options)) {
+    return {
+      ...options,
+      global: true,
+      rtl: ref(rtl),
+      isRtl: ref(rtl[options.i18n.global.locale] ?? false),
+    }
   }
 
-  return ref(value) as Ref<T>
-}
-
-export function createLocaleFromOptions (options?: LocaleOptions) {
-  return createLocale({
-    currentLocale: options?.defaultLocale ?? 'en-US',
-    fallbackLocale: options?.fallbackLocale ?? 'en-US',
-    locales: options?.locales ?? { 'en-US': enUS },
-    customTranslateFunction: options?.translate,
-  })
+  return {
+    locale: createLocale(mergeDeep(defaultOptions, options ? {
+      locale: options.defaultLocale,
+      fallbackLocale: options.fallbackLocale,
+      messages: options.messages,
+    } : {}) as any),
+    rtl: ref(rtl),
+    isRtl: ref((!!options?.defaultLocale && rtl[options?.defaultLocale]) ?? false),
+  }
 }
 
 export function createLocale (options: {
-  currentLocale: MaybeRef<string>
+  locale: MaybeRef<string>
   fallbackLocale: MaybeRef<string>
-  locales: MaybeRef<Record<string, Locale>>
-  customTranslateFunction?: CustomTranslateFunction
+  messages: MaybeRef<Record<string, Locale>>
 }) {
-  console.log('before')
-  const currentLocale = wrapInRef(options.currentLocale)
-  console.log('after')
+  const locale = wrapInRef(options.locale)
   const fallbackLocale = wrapInRef(options.fallbackLocale)
-  const locales = wrapInRef(options.locales)
-  const customTranslateFunction = options.customTranslateFunction
-
-  const computedLocale = computed(() => {
-    return locales.value[currentLocale.value] ?? locales.value[fallbackLocale.value]
-  })
-  const isRtl = computed(() => !!computedLocale.value?.rtl)
+  const messages = wrapInRef(options.messages)
 
   return {
-    isRtl,
-    locales,
-    currentLocale,
+    messages,
+    locale,
     fallbackLocale,
-    customTranslateFunction,
-    translate: createTranslateFunction(currentLocale, fallbackLocale, locales, customTranslateFunction),
+    t: createTranslateFunction(locale, fallbackLocale, messages),
   }
 }
 
 export function useLocale () {
-  const locale = inject(VuetifyLocaleSymbol)
+  const injected = inject(VuetifyLocaleSymbol)
 
-  if (!locale) throw new Error('Could not find Vuetify locale injection')
+  if (!injected) throw new Error('foo')
 
-  return locale
+  if (injected.getScope) return injected.getScope(injected.global)
+
+  return injected.locale
 }
 
-export function provideLocale (props: { locale?: string, fallbackLocale?: string }) {
-  const locale = useLocale()
+export function provideLocale (props: { locale?: string, rtl?: boolean }) {
+  const injected = inject(VuetifyLocaleSymbol)
 
-  const currentLocale = computed(() => props.locale ?? locale.currentLocale.value)
-  const fallbackLocale = computed(() => props.fallbackLocale ?? locale.fallbackLocale.value)
+  if (!injected) throw new Error('foo')
 
-  console.log('provideee', currentLocale.value)
+  let newLocale: any
 
-  const newLocale = createLocale({
-    currentLocale,
-    fallbackLocale,
-    locales: locale.locales,
-    customTranslateFunction: locale.customTranslateFunction,
+  if (injected.createScope) {
+    newLocale = injected.createScope(props.locale)
+  } else {
+    newLocale = createLocale({
+      locale: props.locale ?? injected.locale.locale.value,
+      fallbackLocale: injected.locale.fallbackLocale.value,
+      messages: injected.locale.messages,
+    })
+  }
+  const isRtl = ref<boolean | undefined>(props.rtl ?? injected.rtl.value[newLocale.locale.value])
+
+  watch(() => props.locale, () => {
+    newLocale.locale.value = props.locale
+    isRtl.value = injected.rtl.value[props.locale ?? injected.locale.locale.value]
   })
-
-  provide(VuetifyLocaleSymbol, newLocale)
+  watch(() => props.rtl, () => isRtl.value = props.rtl)
+  provide(VuetifyLocaleSymbol, { ...injected, locale: newLocale, global: false, isRtl })
 
   return newLocale
+}
+
+export interface RtlProvide {
+  rtl: Record<string, boolean>
+}
+
+export const VuetifyRtlSymbol: InjectionKey<RtlProvide> = Symbol.for('vuetify:rtl')
+
+export function createRtl (options: { rtl: Record<string, boolean>, isRtl?: boolean }) {
+  const rtl = ref(options.rtl)
+  const isRtl = ref(options.isRtl)
+
+  return { rtl, isRtl }
+}
+
+export function useRtl () {
+  const injected = inject(VuetifyLocaleSymbol)
+
+  if (!injected) throw new Error('foo')
+
+  return { isRtl: injected.isRtl }
 }

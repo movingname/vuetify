@@ -6,7 +6,8 @@ export default defineComponent({
 
   props: {
     locale: String,
-    fallbackLocale: String
+    fallbackLocale: String,
+    rtl: Boolean
   },
 
   setup (props, ctx) {

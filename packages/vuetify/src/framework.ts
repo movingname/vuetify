@@ -9,7 +9,7 @@ import { aliases, mdi } from '@/iconsets/mdi'
 import type { InjectionKey, App } from 'vue'
 import type { ThemeOptions } from '@/composables/theme'
 import type { IconOptions } from '@/composables/icons'
-import type { LocaleOptions } from '@/composables/locale'
+import type { LocaleOptions, VueI18nOptions } from '@/composables/locale'
 
 export interface VuetifyComponentDefaults {
   [key: string]: undefined | Record<string, unknown>
@@ -26,7 +26,7 @@ export interface VuetifyOptions {
   defaults?: Partial<VuetifyComponentDefaults>
   theme?: ThemeOptions
   icons?: IconOptions
-  locale?: LocaleOptions
+  locale?: LocaleOptions | VueI18nOptions
 }
 
 export const VuetifySymbol: InjectionKey<VuetifyInstance> = Symbol.for('vuetify')

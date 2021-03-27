@@ -1,4 +1,4 @@
-import { computed, createApp } from 'vue'
+import { createApp } from 'vue'
 import App from './App'
 import { createI18n, useI18n } from 'vue-i18n'
 
@@ -10,34 +10,7 @@ import '@mdi/font/css/materialdesignicons.css'
 import { createVuetify } from 'vuetify'
 import { aliases, mdi } from 'vuetify/src/iconsets/mdi'
 import { fa } from 'vuetify/src/iconsets/fa-svg'
-// import { en, ar } from 'vuetify/src/locale'
-
-const messages = {
-  en: {
-    message: {
-      hello: 'hello world',
-    },
-    $vuetify: {
-      foo: '{0} en {1}',
-    },
-  },
-  ja: {
-    message: {
-      hello: 'こんにちは、世界',
-    },
-    $vuetify: {
-      foo: '{0} ja {1}',
-    },
-  },
-  sv: {
-    message: {
-      hello: 'Hejsan Världen!',
-    },
-    $vuetify: {
-      foo: '{0} sv {1}',
-    },
-  },
-}
+import { messages, sv, en, ja } from './messages'
 
 const i18n = createI18n({
   legacy: false,
@@ -46,26 +19,27 @@ const i18n = createI18n({
   messages,
 })
 
+const rtl = {
+  sv: false,
+  en: false,
+  ja: true,
+}
+
+const wrapVueI18n = () => ({
+  i18n,
+  getScope: global => useI18n({ legacy: false, useScope: global ? 'global' : 'parent' }),
+  createScope: locale => useI18n({ legacy: false, useScope: 'local', messages, locale, inheritLocale: !locale }),
+  rtl,
+})
+
 const vuetify = createVuetify({
-  // lang: {
-  //   locales,
-  // },
-  // locale: {
-  //   locales: {
-  //     en,
-  //     ar,
-  //   },
-  // },
   locale: {
-    defaultLocale: computed(() => i18n.global.locale),
-    translate: (key, locale, params) => {
-      // if (i18n.mode === 'legacy') return i18n.global.t(key, locale, params)
-      return i18n.global.t(key, params, { locale })
-    },
-    createScope: () => {
-      return useI18n({ useScope: 'local' })
-    },
+    defaultLocale: 'ja',
+    fallbackLocale: 'en',
+    messages: { sv, en, ja },
+    rtl,
   },
+  // locale: wrapVueI18n(),
   icons: {
     defaultSet: 'mdi',
     aliases,
