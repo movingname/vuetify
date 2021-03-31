@@ -12,6 +12,9 @@ import { aliases, mdi } from 'vuetify/src/iconsets/mdi'
 import { fa } from 'vuetify/src/iconsets/fa-svg'
 import { messages, sv, en, ja } from './messages'
 
+import { createIntl } from '@formatjs/intl'
+import { provideIntl, useIntl } from 'vue-intl'
+
 const i18n = createI18n({
   legacy: false,
   locale: 'ja',
@@ -32,13 +35,19 @@ const wrapVueI18n = () => ({
   rtl,
 })
 
+const wrapVueIntl = () => ({
+  getScope: global => useIntl(),
+  createScope: locale => provideIntl(createIntl({ locale, defaultLocale: 'en', messages })),
+  rtl,
+})
+
 const vuetify = createVuetify({
-  locale: {
-    defaultLocale: 'ja',
-    fallbackLocale: 'en',
-    messages: { sv, en, ja },
-    rtl,
-  },
+  // locale: {
+  //   locale: 'ja',
+  //   fallbackLocale: 'en',
+  //   messages: { sv, en, ja },
+  //   rtl,
+  // },
   // locale: wrapVueI18n(),
   icons: {
     defaultSet: 'mdi',

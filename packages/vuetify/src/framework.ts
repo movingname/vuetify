@@ -1,7 +1,6 @@
 import { inject } from 'vue'
 import { createTheme, VuetifyThemeSymbol } from '@/composables/theme'
 import { defaultSets, VuetifyIconSymbol } from '@/composables/icons'
-import { createLocaleFromOptions, VuetifyLocaleSymbol } from '@/composables/locale'
 import { mergeDeep } from '@/util'
 import { aliases, mdi } from '@/iconsets/mdi'
 
@@ -9,7 +8,8 @@ import { aliases, mdi } from '@/iconsets/mdi'
 import type { InjectionKey, App } from 'vue'
 import type { ThemeOptions } from '@/composables/theme'
 import type { IconOptions } from '@/composables/icons'
-import type { LocaleOptions, VueI18nOptions } from '@/composables/locale'
+import { LocaleOptions, LocaleAdapter, VuetifyLocaleAdapterSymbol } from '@/composables/locale-v2'
+import { createLocaleAdapter, VuetifyLocaleSymbol } from '@/composables/locale-v2'
 
 export interface VuetifyComponentDefaults {
   [key: string]: undefined | Record<string, unknown>
@@ -26,7 +26,7 @@ export interface VuetifyOptions {
   defaults?: Partial<VuetifyComponentDefaults>
   theme?: ThemeOptions
   icons?: IconOptions
-  locale?: LocaleOptions | VueI18nOptions
+  locale?: LocaleOptions | LocaleAdapter
 }
 
 export const VuetifySymbol: InjectionKey<VuetifyInstance> = Symbol.for('vuetify')
@@ -79,7 +79,9 @@ export const createVuetify = (options: VuetifyOptions = {}) => {
       },
       aliases,
     }, icons))
-    app.provide(VuetifyLocaleSymbol, createLocaleFromOptions(options?.locale))
+    const localeAdapter = createLocaleAdapter(options?.locale)
+    app.provide(VuetifyLocaleAdapterSymbol, localeAdapter)
+    app.provide(VuetifyLocaleSymbol, localeAdapter.createRoot())
     app.config.globalProperties.$vuetify = vuetify
   }
 
