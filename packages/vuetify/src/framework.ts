@@ -1,6 +1,7 @@
 import { inject } from 'vue'
 import { createTheme, VuetifyThemeSymbol } from '@/composables/theme'
 import { defaultSets, VuetifyIconSymbol } from '@/composables/icons'
+import { createLocaleAdapter, VuetifyLocaleSymbol, VuetifyLocaleAdapterSymbol } from '@/composables/locale'
 import { mergeDeep } from '@/util'
 import { aliases, mdi } from '@/iconsets/mdi'
 
@@ -8,8 +9,7 @@ import { aliases, mdi } from '@/iconsets/mdi'
 import type { InjectionKey, App } from 'vue'
 import type { ThemeOptions } from '@/composables/theme'
 import type { IconOptions } from '@/composables/icons'
-import { LocaleOptions, LocaleAdapter, VuetifyLocaleAdapterSymbol } from '@/composables/locale-v2'
-import { createLocaleAdapter, VuetifyLocaleSymbol } from '@/composables/locale-v2'
+import type { LocaleOptions, LocaleAdapter } from '@/composables/locale'
 
 export interface VuetifyComponentDefaults {
   [key: string]: undefined | Record<string, unknown>
