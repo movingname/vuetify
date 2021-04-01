@@ -1,6 +1,6 @@
 import { inject, provide, ref } from 'vue'
 
-import type { InjectionKey, Ref } from 'vue'
+import type { App, InjectionKey, Ref } from 'vue'
 import { getObjectValueByPath } from '@/util'
 import { consoleError, consoleWarn } from '@/util/console'
 import en from '@/locale/en'
@@ -19,7 +19,7 @@ export interface LocaleInstance {
 }
 
 export interface LocaleAdapter {
-  createRoot: () => LocaleInstance
+  createRoot: (app: App) => LocaleInstance
   getScope: () => LocaleInstance
   createScope: (options?: LocaleOptions) => LocaleInstance
 }
@@ -47,8 +47,12 @@ function isLocaleAdapter (x: any): x is LocaleAdapter {
   return !!x && x.hasOwnProperty('getScope') && x.hasOwnProperty('createScope') && x.hasOwnProperty('createRoot')
 }
 
-export function createLocaleAdapter (options?: LocaleOptions | LocaleAdapter) {
-  return isLocaleAdapter(options) ? options : createDefaultLocaleAdapter(options)
+export function createLocaleAdapter (app: App, options?: LocaleOptions | LocaleAdapter) {
+  const adapter = isLocaleAdapter(options) ? options : createDefaultLocaleAdapter(options)
+
+  adapter.createRoot(app)
+
+  return adapter
 }
 
 const LANG_PREFIX = '$vuetify.'
@@ -105,7 +109,13 @@ export function createDefaultLocaleAdapter (options?: LocaleOptions): LocaleAdap
   }
 
   return {
-    createRoot: () => createScope(options),
+    createRoot: app => {
+      const rootScope = createScope(options)
+
+      app.provide(VuetifyLocaleSymbol, rootScope)
+
+      return rootScope
+    },
     getScope: () => {
       const currentScope = inject(VuetifyLocaleSymbol)
 
@@ -113,7 +123,7 @@ export function createDefaultLocaleAdapter (options?: LocaleOptions): LocaleAdap
 
       return currentScope
     },
-    createScope: (options?: LocaleOptions) => {
+    createScope: options => {
       const currentScope = inject(VuetifyLocaleSymbol)
 
       if (!currentScope) throw new Error('default createScope')
