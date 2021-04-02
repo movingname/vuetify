@@ -9,9 +9,10 @@ import { useProxiedModel } from '@/composables/proxiedModel'
 import { makeDensityProps } from '@/composables/density'
 import { makeSizeProps } from '@/composables/size'
 import { makeTagProps } from '@/composables/tag'
+import { useRefs } from '@/composables/refs'
 
 // Utilities
-import { ComponentPublicInstance, computed, defineComponent, nextTick, onBeforeUpdate, Prop, Ref, ref } from 'vue'
+import { ComponentPublicInstance, computed, defineComponent, nextTick, Prop, Ref, ref } from 'vue'
 import { createRange, keyCodes } from '@/util/helpers'
 import makeProps from '@/util/makeProps'
 
@@ -56,8 +57,8 @@ export default defineComponent({
       default: '$vuetify.rating.ariaLabel.icon',
     },
     disabled: Boolean,
-    labels: Array as Prop<string[]>,
-    labelPosition: {
+    itemLabels: Array as Prop<string[]>,
+    itemLabelPosition: {
       type: String,
       default: 'top',
       validator: (v: any) => ['top', 'bottom'].includes(v),
@@ -100,7 +101,9 @@ export default defineComponent({
         const isFullIcon = isHovering.value ? isHovered : isFilled
         const isHalfIcon = isHovering.value ? isHalfHovered : isHalfFilled
 
-        const icon = isFullIcon ? props.fullIcon : isHalfIcon ? props.halfIcon : props.emptyIcon
+        const icon = isFullIcon ? props.fullIcon
+          : isHalfIcon ? props.halfIcon
+          : props.emptyIcon
 
         const onMouseenter = (e: MouseEvent): void => {
           hoverIndex.value = genHoverIndex(e, index)
@@ -117,6 +120,7 @@ export default defineComponent({
           onClick: (e: MouseEvent) => {
             if (props.readonly) return
 
+            // If detail === 0 then click is triggered by keyboard
             if (e.detail === 0) {
               const currentIndex = Math.floor(rating.value)
               if (rating.value - 1 === index && props.clearable) {
@@ -148,31 +152,28 @@ export default defineComponent({
           isHalfFilled,
           index,
           value: rating.value,
-          hasLabels: !!props.labels?.length,
-          label: props.labels && props.labels[index],
+          hasLabels: !!props.itemLabels?.length || !!slots['item-label'],
+          label: props.itemLabels && props.itemLabels[index],
           ripple: props.ripple,
           density: props.density,
           readonly: props.readonly,
+          tabindex: props.readonly ? -1 : undefined
         }
       }
 
       return createRange(length.value).map(i => createSlotProps(i))
     })
 
-    const buttonRefs = ref<(ComponentPublicInstance | undefined)[]>([])
-
-    onBeforeUpdate(() => {
-      buttonRefs.value = []
-    })
+    const { refs, updateRef } = useRefs<ComponentPublicInstance>()
 
     const onKeydown = (e: KeyboardEvent) => {
       const increment = props.halfIncrements ? 0.5 : 1
       if (e.keyCode === keyCodes.left && rating.value > 0) {
         rating.value -= increment
-        nextTick(() => buttonRefs.value[Math.floor(rating.value)]?.$el.focus())
+        nextTick(() => refs.value[Math.floor(rating.value)]?.$el.focus())
       } else if (e.keyCode === keyCodes.right && rating.value < length.value) {
         rating.value += increment
-        nextTick(() => buttonRefs.value[Math.floor(rating.value - 0.5)]?.$el.focus())
+        nextTick(() => refs.value[Math.floor(rating.value - 0.5)]?.$el.focus())
       }
     }
 
@@ -186,36 +187,39 @@ export default defineComponent({
         ]}
         onKeydown={onKeydown}
       >
-        {icons.value.map(iconProps => slots.item ? slots.item(iconProps) : (
+        {icons.value.map(iconProps => (
           <div
             key={iconProps.index}
             class={[
               "v-rating__item",
               {
-                'v-rating__item--bottom': props.labelPosition === 'bottom',
+                'v-rating__item--bottom': props.itemLabelPosition === 'bottom',
               }
             ]}
           >
             {
               !iconProps.hasLabels ? undefined
+              : slots['item-label'] ? slots['item-label'](iconProps)
               : iconProps.label ? <span>{iconProps.label}</span>
               : <span>&nbsp;</span>
             }
-            <VBtn
-              ref={(e: any) => e && (buttonRefs.value[iconProps.index] = e)}
-              color={iconProps.color}
-              ripple={iconProps.ripple}
-              size={iconProps.size}
-              icon={iconProps.icon}
-              onClick={iconProps.onClick}
-              onMouseenter={iconProps.onMouseenter}
-              onMouseleave={iconProps.onMouseleave}
-              onMousemove={iconProps.onMousemove}
-              aria-label={iconProps.ariaLabel}
-              disabled={iconProps.disabled}
-              density={props.density}
-              tabindex={props.readonly ? -1 : undefined}
-            />
+            {slots.item ? slots.item(iconProps) : (
+              <VBtn
+                ref={(e: any) => updateRef(e, iconProps.index)}
+                color={iconProps.color}
+                ripple={iconProps.ripple}
+                size={iconProps.size}
+                icon={iconProps.icon}
+                onClick={iconProps.onClick}
+                onMouseenter={iconProps.onMouseenter}
+                onMouseleave={iconProps.onMouseleave}
+                onMousemove={iconProps.onMousemove}
+                aria-label={iconProps.ariaLabel}
+                disabled={iconProps.disabled}
+                density={iconProps.density}
+                tabindex={iconProps.tabindex}
+              />
+            )}
           </div>
         ))}
       </props.tag>
